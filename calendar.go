@@ -53,6 +53,7 @@ const (
 	ComponentPropertyRrule        = ComponentProperty(PropertyRrule)
 	ComponentPropertyAction       = ComponentProperty(PropertyAction)
 	ComponentPropertyTrigger      = ComponentProperty(PropertyTrigger)
+	ComponentPropertyRecurrenceId = ComponentProperty(PropertyRecurrenceId)
 )
 
 type Property string
