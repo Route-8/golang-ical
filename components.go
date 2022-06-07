@@ -163,7 +163,11 @@ func (event *VEvent) getTimeProp(componentProperty ComponentProperty, expectAllD
 		return time.Time{}, errors.New("property not found")
 	}
 
-	timeVal := timeProp.BaseProperty.Value
+	return GetTimeFromProp(timeProp, expectAllDay)
+}
+
+func GetTimeFromProp(prop *IANAProperty, expectAllDay bool) (time.Time, error) {
+	timeVal := prop.BaseProperty.Value
 	matched := timeStampVariations.FindStringSubmatch(timeVal)
 	if matched == nil {
 		return time.Time{}, fmt.Errorf("time value not matched, got '%s'", timeVal)
@@ -173,7 +177,7 @@ func (event *VEvent) getTimeProp(componentProperty ComponentProperty, expectAllD
 	grp1len := len(matched[1])
 	grp3len := len(matched[3])
 
-	tzId, tzIdOk := timeProp.ICalParameters["TZID"]
+	tzId, tzIdOk := prop.ICalParameters["TZID"]
 	var propLoc *time.Location
 	if tzIdOk {
 		if len(tzId) != 1 {
