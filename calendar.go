@@ -6,7 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
+	"strconv"
 	"time"
+
+	tz "github.com/tkuchiki/go-timezone"
 )
 
 type ComponentType string
@@ -274,6 +278,7 @@ type CalendarProperty struct {
 type Calendar struct {
 	Components         []Component
 	CalendarProperties []CalendarProperty
+	Timezones          map[string]*time.Location
 }
 
 func NewCalendar() *Calendar {
@@ -284,6 +289,7 @@ func NewCalendarFor(service string) *Calendar {
 	c := &Calendar{
 		Components:         []Component{},
 		CalendarProperties: []CalendarProperty{},
+		Timezones:          map[string]*time.Location{},
 	}
 	c.SetVersion("2.0")
 	c.SetProductId("-//" + service + "//Golang ICS Library")
@@ -397,11 +403,12 @@ func (calendar *Calendar) setProperty(property Property, value string, props ...
 
 func NewEvent(uniqueId string) *VEvent {
 	e := &VEvent{
-		ComponentBase{
+		ComponentBase: ComponentBase{
 			Properties: []IANAProperty{
 				{BaseProperty{IANAToken: ToText(string(ComponentPropertyUniqueId)), Value: uniqueId}},
 			},
 		},
+		Timezones: map[string]*time.Location{},
 	}
 	return e
 }
@@ -427,9 +434,91 @@ func (calendar *Calendar) Events() (r []*VEvent) {
 	return
 }
 
+func (calendar *Calendar) extractTimezones() {
+	for _, component := range calendar.Components {
+		switch comp := component.(type) {
+		case *VTimezone:
+			name, location := vtimezoneToLocation(comp)
+			calendar.Timezones[name] = location
+		}
+	}
+}
+
+func vtimezoneToLocation(vtz *VTimezone) (string, *time.Location) {
+	// Extract custom timezone name
+	prop := vtz.GetProperty(ComponentProperty(PropertyTzid))
+	if prop == nil {
+		return "", nil
+	}
+	name := prop.Value
+
+	// Check for a single timezone
+	// TODO - Need to grab an example of a single timezone to implement this one. Might be handled by the next section.
+
+	// Extract timezone offsets
+	var err error
+	var offsetSTD, offsetDST int
+	for _, sc := range vtz.SubComponents() {
+		fmt.Println("SC: ", reflect.TypeOf(sc))
+		switch sc := sc.(type) {
+		case *Standard:
+			offset := sc.GetProperty(ComponentProperty(PropertyTzoffsetto))
+			offsetSTD, err = strconv.Atoi(offset.Value)
+			if err != nil {
+				fmt.Println("error parsing timezone offset: %w", err)
+			}
+		case *Daylight:
+			offset := sc.GetProperty(ComponentProperty(PropertyTzoffsetto))
+			offsetDST, err = strconv.Atoi(offset.Value)
+			if err != nil {
+				fmt.Println("error parsing timezone offset: %w", err)
+			}
+		}
+	}
+	offsetSTD = ((offsetSTD / 100) * 60 * 60) + ((offsetSTD % 100) * 60)
+	offsetDST = ((offsetDST / 100) * 60 * 60) + ((offsetDST % 100) * 60)
+
+	// Loop through TZ Database and find something that matches
+	tzDatabase := tz.New()
+	var location *time.Location
+	for tzid, tz := range tzDatabase.TzInfos() {
+		if tz.IsDeprecated() || tz.LastDST() < time.Now().Year() {
+			continue
+		}
+		nameMatch := false
+		timeMatch := false
+
+		// Check for a name match
+		if tz.LongGeneric() == name || tz.LongStandard() == name || tz.LongDaylight() == name {
+			nameMatch = true
+		}
+
+		// Check for a time match
+		if tz.StandardOffset() == offsetSTD && tz.DaylightOffset() == offsetDST {
+			timeMatch = true
+		}
+
+		if nameMatch && timeMatch {
+			// Both name and time match, use this immediately
+			location, _ = time.LoadLocation(tzid)
+			return name, location
+		} else if timeMatch {
+			// Time matches, this takes priority
+			location, _ = time.LoadLocation(tzid)
+		} else if nameMatch && location == nil {
+			// Name matches, but no time match yet, last resort
+			location, _ = time.LoadLocation(tzid)
+		}
+	}
+
+	return name, location
+}
+
 func ParseCalendar(r io.Reader) (*Calendar, error) {
 	state := "begin"
-	c := &Calendar{}
+	c := &Calendar{
+		Timezones: make(map[string]*time.Location),
+	}
 	cs := NewCalendarStream(r)
 	cont := true
 	for ln := 0; cont; ln++ {
@@ -509,6 +598,19 @@ func ParseCalendar(r io.Reader) (*Calendar, error) {
 			return nil, errors.New("malformed calendar; bad state")
 		}
 	}
+
+	c.extractTimezones()
+	if len(c.Timezones) > 0 {
+		// Upate VEvents with timezone information
+		for i := range c.Components {
+			switch event := c.Components[i].(type) {
+			case *VEvent:
+				event.Timezones = c.Timezones
+				c.Components[i] = event
+			}
+		}
+	}
+
 	return c, nil
 }
 
