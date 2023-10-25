@@ -82,6 +82,7 @@ func (cb *ComponentBase) AddProperty(property ComponentProperty, value string, p
 
 type VEvent struct {
 	ComponentBase
+	Timezones map[string]*time.Location
 }
 
 func (c *VEvent) serialize(w io.Writer) {
@@ -163,10 +164,10 @@ func (event *VEvent) getTimeProp(componentProperty ComponentProperty, expectAllD
 		return time.Time{}, errors.New("property not found")
 	}
 
-	return GetTimeFromProp(timeProp, expectAllDay)
+	return GetTimeFromProp(timeProp, event.Timezones, expectAllDay)
 }
 
-func GetTimeFromProp(prop *IANAProperty, expectAllDay bool) (time.Time, error) {
+func GetTimeFromProp(prop *IANAProperty, timezones map[string]*time.Location, expectAllDay bool) (time.Time, error) {
 	timeVal := prop.BaseProperty.Value
 	matched := timeStampVariations.FindStringSubmatch(timeVal)
 	if matched == nil {
@@ -183,10 +184,23 @@ func GetTimeFromProp(prop *IANAProperty, expectAllDay bool) (time.Time, error) {
 		if len(tzId) != 1 {
 			return time.Time{}, errors.New("expected only one TZID")
 		}
+		timezoneID := tzId[0]
+
+		// Check if this is a custom timezone
+		for name, loc := range timezones {
+			if name == timezoneID {
+				propLoc = loc
+				break
+			}
+		}
+
 		var tzErr error
-		propLoc, tzErr = time.LoadLocation(tzId[0])
-		if tzErr != nil {
-			return time.Time{}, tzErr
+		if propLoc == nil {
+			// Not found in custom timezones, try to parse directly
+			propLoc, tzErr = time.LoadLocation(timezoneID)
+			if tzErr != nil {
+				return time.Time{}, tzErr
+			}
 		}
 	}
 	dateStr := matched[1]
