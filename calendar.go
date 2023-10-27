@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"reflect"
 	"strconv"
 	"time"
 
@@ -459,19 +458,18 @@ func vtimezoneToLocation(vtz *VTimezone) (string, *time.Location) {
 	var err error
 	var offsetSTD, offsetDST int
 	for _, sc := range vtz.SubComponents() {
-		fmt.Println("SC: ", reflect.TypeOf(sc))
 		switch sc := sc.(type) {
 		case *Standard:
 			offset := sc.GetProperty(ComponentProperty(PropertyTzoffsetto))
 			offsetSTD, err = strconv.Atoi(offset.Value)
 			if err != nil {
-				fmt.Println("error parsing timezone offset: %w", err)
+				fmt.Println("error parsing VTimezone standard offset: %w", err)
 			}
 		case *Daylight:
 			offset := sc.GetProperty(ComponentProperty(PropertyTzoffsetto))
 			offsetDST, err = strconv.Atoi(offset.Value)
 			if err != nil {
-				fmt.Println("error parsing timezone offset: %w", err)
+				fmt.Println("error parsing VTimezone daylight offset: %w", err)
 			}
 		}
 	}
