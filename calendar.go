@@ -487,7 +487,7 @@ func vtimezoneToLocation(vtz *VTimezone) (string, *time.Location) {
 		timeMatch := false
 
 		// Check for a name match
-		if tz.LongGeneric() == name || tz.LongStandard() == name || tz.LongDaylight() == name {
+		if tzid == name || tz.LongGeneric() == name || tz.LongStandard() == name || tz.LongDaylight() == name {
 			nameMatch = true
 		}
 
@@ -500,11 +500,11 @@ func vtimezoneToLocation(vtz *VTimezone) (string, *time.Location) {
 			// Both name and time match, use this immediately
 			location, _ = time.LoadLocation(tzid)
 			return name, location
-		} else if timeMatch {
-			// Time matches, this takes priority
+		} else if nameMatch {
+			// Name matches, this takes priority
 			location, _ = time.LoadLocation(tzid)
-		} else if nameMatch && location == nil {
-			// Name matches, but no time match yet, last resort
+		} else if timeMatch && location == nil {
+			// Time matches, last resort
 			location, _ = time.LoadLocation(tzid)
 		}
 	}
