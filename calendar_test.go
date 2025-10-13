@@ -1,7 +1,6 @@
 package ics
 
 import (
-	"github.com/stretchr/testify/assert"
 	"io"
 	"io/ioutil"
 	"os"
@@ -11,6 +10,8 @@ import (
 	"testing"
 	"time"
 	"unicode/utf8"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTimeParsing(t *testing.T) {
@@ -358,5 +359,81 @@ func TestIssue52(t *testing.T) {
 
 	if err != nil {
 		t.Fatalf("cannot read test directory: %v", err)
+	}
+}
+
+func TestPropertiesBetweenComponents(t *testing.T) {
+	// Open the properties-between-components.ical test file
+	calFile, err := os.OpenFile("./testdata/properties-between-components.ical", os.O_RDONLY, 0400)
+	if err != nil {
+		t.Fatalf("read file: %v", err)
+	}
+	defer calFile.Close()
+
+	// Parse the calendar
+	cal, err := ParseCalendar(calFile)
+	if err != nil {
+		t.Fatalf("parse calendar: %v", err)
+	}
+
+	// Verify basic structure
+	if cal == nil {
+		t.Fatal("calendar is nil")
+	}
+
+	// Check that we have 2 events
+	events := cal.Events()
+	if len(events) != 2 {
+		t.Errorf("expected 2 events, got %d", len(events))
+	}
+
+	// Verify timezone was extracted
+	if len(cal.Timezones) == 0 {
+		t.Error("expected timezone to be extracted, but Timezones map is empty")
+	} else {
+		// Check for America/Los_Angeles timezone
+		_, ok := cal.Timezones["America/Los_Angeles"]
+		if !ok {
+			t.Errorf("expected America/Los_Angeles timezone, available timezones: %v", cal.Timezones)
+		}
+	}
+
+	// Verify event details
+	expectedEvents := map[string]string{
+		"MEC-d873508ba95219387e5684f17335da47@eternalnoire.com": "[PtH] Mechanics Workshop",
+		"MEC-943ff7d741943755c9f4720a68d8fb9f@eternalnoire.com": "[PtH] Character Sheet Submission",
+	}
+
+	eventMap := make(map[string]*VEvent)
+	for _, e := range events {
+		eventMap[e.Id()] = e
+	}
+
+	for uid, expectedSummary := range expectedEvents {
+		evt, ok := eventMap[uid]
+		if !ok {
+			t.Errorf("expected event with UID %s not found", uid)
+			continue
+		}
+
+		summary := evt.GetProperty(ComponentPropertySummary)
+		if summary == nil {
+			t.Errorf("event %s: summary property not found", uid)
+			continue
+		}
+		if summary.Value != expectedSummary {
+			t.Errorf("event %s: expected summary %q, got %q", uid, expectedSummary, summary.Value)
+		}
+
+		// Verify that start and end times can be retrieved
+		_, err := evt.GetStartAt()
+		if err != nil {
+			t.Errorf("error getting start time for event %s: %v", uid, err)
+		}
+
+		_, err = evt.GetEndAt()
+		if err != nil {
+			t.Errorf("error getting end time for event %s: %v", uid, err)
+		}
 	}
 }

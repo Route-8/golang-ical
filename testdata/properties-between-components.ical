@@ -1,0 +1,65 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+METHOD:PUBLISH
+CALSCALE:GREGORIAN
+PRODID:-//WordPress - MECv7.26.0//EN
+X-ORIGINAL-URL:https://eternalnoire.com/
+X-WR-CALNAME:Eternal Noire
+X-WR-CALDESC:A Chronicles of Darkness Role-Playing Game
+X-WR-TIMEZONE:America/Los_Angeles
+BEGIN:VTIMEZONE
+TZID:America/Los_Angeles
+X-LIC-LOCATION:America/Los_Angeles
+BEGIN:DAYLIGHT
+TZOFFSETFROM:-0800
+TZOFFSETTO:-0700
+TZNAME:PDT
+DTSTART:20250309T030000
+RRULE:FREQ=YEARLY;BYMONTH=03;BYDAY=2SU
+END:DAYLIGHT
+BEGIN:STANDARD
+TZOFFSETFROM:-0700
+TZOFFSETTO:-0800
+TZNAME:PST
+DTSTART:20251102T010000
+RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU
+END:STANDARD
+END:VTIMEZONE
+REFRESH-INTERVAL;VALUE=DURATION:PT1H
+X-PUBLISHED-TTL:PT1H
+X-MS-OLK-FORCEINSPECTOROPEN:TRUE
+BEGIN:VEVENT
+CLASS:PUBLIC
+UID:MEC-d873508ba95219387e5684f17335da47@eternalnoire.com
+DTSTART;TZID=America/Los_Angeles:20251014T173000
+DTEND;TZID=America/Los_Angeles:20251014T184500
+DTSTAMP:20251011T131713Z
+CREATED:20251011
+LAST-MODIFIED:20251011
+PRIORITY:5
+SEQUENCE:1
+TRANSP:OPAQUE
+SUMMARY:[PtH] Mechanics Workshop
+DESCRIPTION:Your princess team will all be available on the chat to ask us anything, workshop characters, or discuss mechanics specific to your concepts.\n
+URL:https://eternalnoire.com/scenes/pth-mechanics-workshop/
+CATEGORIES:Princess the Hopeful
+ATTACH;FMTTYPE=image/png:https://eternalnoire.com/wp-content/uploads/2025/10/thumb-1920-1353832.png
+END:VEVENT
+BEGIN:VEVENT
+CLASS:PUBLIC
+UID:MEC-943ff7d741943755c9f4720a68d8fb9f@eternalnoire.com
+DTSTART;TZID=America/Los_Angeles:20251017T080000
+DTEND;TZID=America/Los_Angeles:20251017T235500
+DTSTAMP:20251011T132410Z
+CREATED:20251011
+LAST-MODIFIED:20251011
+PRIORITY:5
+SEQUENCE:1
+TRANSP:OPAQUE
+SUMMARY:[PtH] Character Sheet Submission
+DESCRIPTION:We’ve decided that our soft open day will be Friday, October 17th. You’ll be able to submit character sheets this day, and you may go in-character and roleplay in scenes among yourselves leading up to our first All Venue Scene.\n
+URL:https://eternalnoire.com/forum/
+CATEGORIES:Princess the Hopeful
+ATTACH;FMTTYPE=image/png:https://eternalnoire.com/wp-content/uploads/2025/10/PtH_icon.png
+END:VEVENT
+END:VCALENDAR
