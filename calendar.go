@@ -283,6 +283,12 @@ type Calendar struct {
 
 func (calendar *Calendar) SetDefaultTimezone(loc *time.Location) {
 	calendar.DefaultTimezone = loc
+	for _, comp := range calendar.Components {
+		switch e := comp.(type) {
+		case *VEvent:
+			e.DefaultTimezone = loc
+		}
+	}
 }
 
 func NewCalendar() *Calendar {

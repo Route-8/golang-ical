@@ -165,4 +165,30 @@ func TestDefaultTimezone(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "America/New_York", got.Location().String())
 	})
+
+	t.Run("SetDefaultTimezone after ParseCalendar propagates to parsed events", func(t *testing.T) {
+		calStr := `BEGIN:VCALENDAR
+BEGIN:VEVENT
+DTSTART:20260309T100000
+DTEND:20260309T110000
+SUMMARY:Test Event
+END:VEVENT
+END:VCALENDAR`
+		cal, err := ParseCalendar(strings.NewReader(calStr))
+		require.NoError(t, err)
+
+		// Before setting timezone, times should use time.Local
+		events := cal.Events()
+		require.Len(t, events, 1)
+		got, err := events[0].GetStartAt()
+		require.NoError(t, err)
+		assert.Equal(t, time.Local.String(), got.Location().String())
+
+		// After setting timezone, times should use the new timezone
+		cal.SetDefaultTimezone(eastern)
+
+		got, err = events[0].GetStartAt()
+		require.NoError(t, err)
+		assert.Equal(t, "America/New_York", got.Location().String())
+	})
 }
