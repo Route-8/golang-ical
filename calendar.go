@@ -278,6 +278,11 @@ type Calendar struct {
 	Components         []Component
 	CalendarProperties []CalendarProperty
 	Timezones          map[string]*time.Location
+	DefaultTimezone    *time.Location
+}
+
+func (calendar *Calendar) SetDefaultTimezone(loc *time.Location) {
+	calendar.DefaultTimezone = loc
 }
 
 func NewCalendar() *Calendar {
@@ -414,11 +419,17 @@ func NewEvent(uniqueId string) *VEvent {
 
 func (calendar *Calendar) AddEvent(id string) *VEvent {
 	e := NewEvent(id)
+	if calendar.DefaultTimezone != nil {
+		e.DefaultTimezone = calendar.DefaultTimezone
+	}
 	calendar.Components = append(calendar.Components, e)
 	return e
 }
 
 func (calendar *Calendar) AddVEvent(e *VEvent) {
+	if e.DefaultTimezone == nil && calendar.DefaultTimezone != nil {
+		e.DefaultTimezone = calendar.DefaultTimezone
+	}
 	calendar.Components = append(calendar.Components, e)
 }
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSetDuration(t *testing.T) {
@@ -58,4 +59,110 @@ END:VEVENT
 			assert.Equal(t, nil, err)
 		})
 	}
+}
+
+func TestDefaultTimezone(t *testing.T) {
+	eastern, err := time.LoadLocation("America/New_York")
+	require.NoError(t, err)
+	pacific, err := time.LoadLocation("America/Los_Angeles")
+	require.NoError(t, err)
+
+	t.Run("no default uses time.Local", func(t *testing.T) {
+		e := NewEvent("test")
+		e.SetProperty(ComponentPropertyDtStart, "20260309")
+		got, err := e.GetAllDayStartAt()
+		require.NoError(t, err)
+		expected, _ := time.ParseInLocation("20060102", "20260309", time.Local)
+		assert.Equal(t, expected, got)
+	})
+
+	t.Run("event-level default timezone", func(t *testing.T) {
+		e := NewEvent("test")
+		e.SetDefaultTimezone(eastern)
+		e.SetProperty(ComponentPropertyDtStart, "20260309")
+		got, err := e.GetAllDayStartAt()
+		require.NoError(t, err)
+		expected, _ := time.ParseInLocation("20060102", "20260309", eastern)
+		assert.Equal(t, expected, got)
+		assert.Equal(t, "America/New_York", got.Location().String())
+	})
+
+	t.Run("calendar-level default propagates to events", func(t *testing.T) {
+		cal := NewCalendar()
+		cal.SetDefaultTimezone(eastern)
+		e := cal.AddEvent("test")
+		e.SetProperty(ComponentPropertyDtStart, "20260309")
+
+		events := cal.Events()
+		require.Len(t, events, 1)
+		got, err := events[0].GetAllDayStartAt()
+		require.NoError(t, err)
+		assert.Equal(t, "America/New_York", got.Location().String())
+	})
+
+	t.Run("event-level override takes precedence", func(t *testing.T) {
+		cal := NewCalendar()
+		cal.SetDefaultTimezone(eastern)
+		e := cal.AddEvent("test")
+		e.SetDefaultTimezone(pacific)
+		e.SetProperty(ComponentPropertyDtStart, "20260309")
+
+		events := cal.Events()
+		require.Len(t, events, 1)
+		got, err := events[0].GetAllDayStartAt()
+		require.NoError(t, err)
+		assert.Equal(t, "America/Los_Angeles", got.Location().String())
+	})
+
+	t.Run("explicit TZID wins over default", func(t *testing.T) {
+		e := NewEvent("test")
+		e.SetDefaultTimezone(pacific)
+		e.AddProperty(ComponentPropertyDtStart, "20260309T100000", &KeyValues{Key: "TZID", Value: []string{"America/New_York"}})
+		got, err := e.GetStartAt()
+		require.NoError(t, err)
+		assert.Equal(t, "America/New_York", got.Location().String())
+	})
+
+	t.Run("UTC suffix wins over default", func(t *testing.T) {
+		e := NewEvent("test")
+		e.SetDefaultTimezone(pacific)
+		e.SetProperty(ComponentPropertyDtStart, "20260309T100000Z")
+		got, err := e.GetStartAt()
+		require.NoError(t, err)
+		assert.Equal(t, "UTC", got.Location().String())
+	})
+
+	t.Run("local datetime uses default timezone", func(t *testing.T) {
+		e := NewEvent("test")
+		e.SetDefaultTimezone(eastern)
+		e.SetProperty(ComponentPropertyDtStart, "20260309T100000")
+		got, err := e.GetStartAt()
+		require.NoError(t, err)
+		assert.Equal(t, "America/New_York", got.Location().String())
+	})
+
+	t.Run("nil default reverts to time.Local", func(t *testing.T) {
+		e := NewEvent("test")
+		e.SetDefaultTimezone(eastern)
+		e.SetDefaultTimezone(nil)
+		e.SetProperty(ComponentPropertyDtStart, "20260309")
+		got, err := e.GetAllDayStartAt()
+		require.NoError(t, err)
+		expected, _ := time.ParseInLocation("20060102", "20260309", time.Local)
+		assert.Equal(t, expected, got)
+	})
+
+	t.Run("AddVEvent propagates default timezone", func(t *testing.T) {
+		cal := NewCalendar()
+		cal.SetDefaultTimezone(eastern)
+		e := NewEvent("test")
+		e.SetProperty(ComponentPropertyDtStart, "20260309")
+		cal.AddVEvent(e)
+
+		events := cal.Events()
+		require.Len(t, events, 1)
+		got, err := events[0].GetAllDayStartAt()
+		require.NoError(t, err)
+		assert.Equal(t, "America/New_York", got.Location().String())
+	})
 }

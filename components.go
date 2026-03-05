@@ -82,7 +82,12 @@ func (cb *ComponentBase) AddProperty(property ComponentProperty, value string, p
 
 type VEvent struct {
 	ComponentBase
-	Timezones map[string]*time.Location
+	Timezones       map[string]*time.Location
+	DefaultTimezone *time.Location
+}
+
+func (event *VEvent) SetDefaultTimezone(loc *time.Location) {
+	event.DefaultTimezone = loc
 }
 
 func (c *VEvent) serialize(w io.Writer) {
@@ -164,13 +169,13 @@ func (event *VEvent) getTimeProp(componentProperty ComponentProperty, expectAllD
 		return time.Time{}, errors.New("property not found")
 	}
 
-	return GetTimeFromProp(timeProp.BaseProperty.Value, timeProp, event.Timezones, expectAllDay)
+	return GetTimeFromProp(timeProp.BaseProperty.Value, timeProp, event.Timezones, expectAllDay, event.DefaultTimezone)
 }
 
-func GetTimesFromProp(prop *IANAProperty, timezones map[string]*time.Location, expectAllDay bool) ([]time.Time, error) {
+func GetTimesFromProp(prop *IANAProperty, timezones map[string]*time.Location, expectAllDay bool, defaultLoc ...*time.Location) ([]time.Time, error) {
 	times := []time.Time{}
 	for _, timeVal := range strings.Split(prop.BaseProperty.Value, ",") {
-		t, err := GetTimeFromProp(timeVal, prop, timezones, expectAllDay)
+		t, err := GetTimeFromProp(timeVal, prop, timezones, expectAllDay, defaultLoc...)
 		if err != nil {
 			return nil, err
 		}
@@ -180,7 +185,12 @@ func GetTimesFromProp(prop *IANAProperty, timezones map[string]*time.Location, e
 	return times, nil
 }
 
-func GetTimeFromProp(timeVal string, prop *IANAProperty, timezones map[string]*time.Location, expectAllDay bool) (time.Time, error) {
+func GetTimeFromProp(timeVal string, prop *IANAProperty, timezones map[string]*time.Location, expectAllDay bool, defaultLoc ...*time.Location) (time.Time, error) {
+	fallbackLoc := time.Local
+	if len(defaultLoc) > 0 && defaultLoc[0] != nil {
+		fallbackLoc = defaultLoc[0]
+	}
+
 	matched := timeStampVariations.FindStringSubmatch(timeVal)
 	if matched == nil {
 		return time.Time{}, fmt.Errorf("time value not matched, got '%s'", timeVal)
@@ -223,7 +233,7 @@ func GetTimeFromProp(timeVal string, prop *IANAProperty, timezones map[string]*t
 				return time.ParseInLocation(icalDateFormatUtc, dateStr+"Z", time.UTC)
 			} else {
 				if propLoc == nil {
-					return time.ParseInLocation(icalDateFormatLocal, dateStr, time.Local)
+					return time.ParseInLocation(icalDateFormatLocal, dateStr, fallbackLoc)
 				} else {
 					return time.ParseInLocation(icalDateFormatLocal, dateStr, propLoc)
 				}
@@ -237,7 +247,7 @@ func GetTimeFromProp(timeVal string, prop *IANAProperty, timezones map[string]*t
 		return time.ParseInLocation(icalTimestampFormatUtc, timeVal, time.UTC)
 	} else if grp1len > 0 && grp3len > 0 && tOrZGrp == "T" && zGrp == "" {
 		if propLoc == nil {
-			return time.ParseInLocation(icalTimestampFormatLocal, timeVal, time.Local)
+			return time.ParseInLocation(icalTimestampFormatLocal, timeVal, fallbackLoc)
 		} else {
 			return time.ParseInLocation(icalTimestampFormatLocal, timeVal, propLoc)
 		}
@@ -245,7 +255,7 @@ func GetTimeFromProp(timeVal string, prop *IANAProperty, timezones map[string]*t
 		return time.ParseInLocation(icalDateFormatUtc, dateStr+"Z", time.UTC)
 	} else if grp1len > 0 && grp3len == 0 && tOrZGrp == "" && zGrp == "" {
 		if propLoc == nil {
-			return time.ParseInLocation(icalDateFormatLocal, dateStr, time.Local)
+			return time.ParseInLocation(icalDateFormatLocal, dateStr, fallbackLoc)
 		} else {
 			return time.ParseInLocation(icalDateFormatLocal, dateStr, propLoc)
 		}
